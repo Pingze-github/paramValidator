@@ -6,12 +6,12 @@
  */
 
 /*
-* 更新：
-* 1. 取消toObj规则，全部采用隐式转换。
-* 2. 取消“.”链式属性，使用对象映射。
-* 3. 支持对array相同格式子元素支持。
-* 4. 所有规则使用$前缀
-* */
+ * 更新：
+ * 1. 取消toObj规则，全部采用隐式转换。
+ * 2. 取消“.”链式属性，使用对象映射。
+ * 3. 支持对array相同格式子元素支持。
+ * 4. 所有规则使用$前缀
+ * */
 
 /**
  * 参数检查主流程
@@ -21,7 +21,7 @@
  */
 module.exports = function (req, schema) {
     for (let resParamType of ['body','query']) {
-        if (req[resParamType]) {
+        if (schema[resParamType]) {
             let objSchema = schema[resParamType];
             let obj = req[resParamType];
             let result = validateObj(obj, objSchema, `req.${resParamType}`);
@@ -43,9 +43,13 @@ function validateObj (obj, objSchema, objPath) {
         throw TypeError('Schema found not an object');
     }
     for (let paramKey in obj) {
-        if (obj.hasOwnProperty(paramKey) && objSchema.hasOwnProperty(paramKey)) {
+        let paramValue = obj[paramKey];
+        if (objSchema.hasOwnProperty(paramKey)) {
             let schema =  objSchema[paramKey];
             if (matchType('object', schema)) {
+                if (Object.keys(schema).length === 0) {
+                    continue;
+                }
                 // 判断参数对象类型
                 let isRuleMap;
                 if (matchType('array', schema)) {
@@ -60,8 +64,29 @@ function validateObj (obj, objSchema, objPath) {
                         }
                     }
                 }
+                // FIXME 只在顶级需要判断，次级不会用这种情况
+                if (matchType('string', paramValue)) {
+                    if ((!isRuleMap && matchType('object', schema)) || (isRuleMap && matchType('array', schema))) {
+                        try {
+                            paramValue = JSON.parse(paramValue);
+                        } catch (e) {
+                            return {code: 3, msg: 'parse json to object error', paramKey, paramValue};
+                        }
+                    }
+                }
+                // 检查isArray不一致错误
+                if (matchType('array', schema)) {
+                    if (!matchType('array', paramValue)) {
+                        return {
+                            code: 4,
+                            msg: 'param value is not an array when schema is an array',
+                            paramKey,
+                            paramValue
+                        };
+                    }
+                }
+
                 // 作为rulemap和object分别处理
-                let paramValue = obj[paramKey];
                 if (isRuleMap) {
                     let ruleMap = schema;
                     if (matchType('array', schema)) {
@@ -99,14 +124,6 @@ function validateObj (obj, objSchema, objPath) {
                             index++;
                         }
                     } else {
-                        // FIXME 只在顶级需要判断，次级不会用这种情况
-                        if (matchType('object', objSchema) && matchType('string', paramValue)) {
-                            try {
-                                obj[paramKey] = JSON.parse(paramValue);
-                            } catch (e) {
-                                return {code: 3, msg: 'parse json to object error', paramKey, paramValue};
-                            }
-                        }
                         let validateResult = validateObj(paramValue, objSchema, `${objPath}.${paramKey}`);
                         if (validateResult) return validateResult;
                     }

@@ -23,17 +23,15 @@ schema = {
                 c: [{$enum: ['a1','b1']}]
             }
         },
-        rules: [
-            {
+        rules: [{
                 times: {$range: [0,20]},
                 a: {
                     b: {$enum: ["on","off"]}
                 }
-            }
-        ],
-        ims: [
-            {$type: 'number'}
-        ]
+        }],
+        ims: [{
+            $type: 'number'
+        }]
     }
 };
 
@@ -47,10 +45,10 @@ let req = {
             interval2: 10,
             a: {
                 b: "on",
-                c: ['a1','b1','c1']
+                c: ['a1','b1']
             }
         },
-        rules: [
+        rules: JSON.stringify([
             {
                 times: 20,
                 a: {
@@ -63,8 +61,8 @@ let req = {
                     b: "off"
                 }
             }
-        ],
-        ims: [1,2,3,4]
+        ]),
+        ims: JSON.stringify([1,2,3,4,'5'])
     }
 };
 

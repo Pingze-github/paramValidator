@@ -26,7 +26,8 @@ const paramValidator = require('./paramValidator');
 function update(req, res) {
   let result = paramValidator(req, {
     query: {
-      id: {type:'string', length: '24'}
+      id: {length: '24'},
+      ext: {}
     },
     body: {
         ip : {$special: 'ip'},
@@ -43,7 +44,8 @@ function update(req, res) {
                     c: [{$range: [1,3]}]
                 }
             }
-        ]
+        ],
+        users: [{reg: /^\d{6,9}$/}]
     }
   });
   if (result.code) {
