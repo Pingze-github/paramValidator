@@ -19,7 +19,8 @@ schema = {
             interval1: {$range: [0,20]},
             interval2: {$range: [0,20]},
             a: {
-                b: {$enum: ["on","off"]}
+                b: {$enum: ["on","off"]},
+                c: [{$enum: ['a1','b1']}]
             }
         },
         rules: [
@@ -29,6 +30,9 @@ schema = {
                     b: {$enum: ["on","off"]}
                 }
             }
+        ],
+        ims: [
+            {$type: 'number'}
         ]
     }
 };
@@ -42,14 +46,15 @@ let req = {
             interval1: 10,
             interval2: 10,
             a: {
-                b: "on"
+                b: "on",
+                c: ['a1','b1','c1']
             }
         },
         rules: [
             {
-                times: 30,
+                times: 20,
                 a: {
-                    b: "ons"
+                    b: "on"
                 }
             },
             {
@@ -58,7 +63,8 @@ let req = {
                     b: "off"
                 }
             }
-        ]
+        ],
+        ims: [1,2,3,4]
     }
 };
 

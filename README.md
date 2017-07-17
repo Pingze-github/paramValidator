@@ -40,6 +40,7 @@ function update(req, res) {
                 times: {$range: [0,20]},
                 a: {
                     b: {$enum: ["on","off"]}
+                    c: [{$range: [1,3]}]
                 }
             }
         ]

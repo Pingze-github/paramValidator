@@ -46,9 +46,10 @@ function validateObj (obj, objSchema, objPath) {
         if (obj.hasOwnProperty(paramKey) && objSchema.hasOwnProperty(paramKey)) {
             let schema =  objSchema[paramKey];
             if (matchType('object', schema)) {
+                // 判断参数对象类型
                 let isRuleMap;
                 if (matchType('array', schema)) {
-                    isRuleMap = false;
+                    isRuleMap = (schema.length === 1 && Object.keys(schema[0])[0][0] === '$');
                 } else {
                     isRuleMap = Object.keys(schema)[0][0] === '$';
                     for (let key in schema) {
@@ -59,28 +60,43 @@ function validateObj (obj, objSchema, objPath) {
                         }
                     }
                 }
+                // 作为rulemap和object分别处理
+                let paramValue = obj[paramKey];
                 if (isRuleMap) {
                     let ruleMap = schema;
-                    for (let ruleName in ruleMap) {
-                        if (ruleMap.hasOwnProperty(ruleName)) {
-                            let paramValue = obj[paramKey];
-                            let ruleValue = ruleMap[ruleName];
-                            let validateResult = validate(ruleName, ruleValue, `${objPath}.${paramKey}`, paramValue);
-                            if (validateResult) return validateResult;
+                    if (matchType('array', schema)) {
+                        ruleMap = ruleMap[0];
+                        let index = 0;
+                        for (let paramValueEach of paramValue) {
+                            for (let ruleName in ruleMap) {
+                                if (ruleMap.hasOwnProperty(ruleName)) {
+                                    let ruleValue = ruleMap[ruleName];
+                                    let validateResult = validate(ruleName, ruleValue, `${objPath}.${paramKey}[${index}]`, paramValueEach);
+                                    if (validateResult) return validateResult;
+                                }
+                            }
+                            index++;
+                        }
+                    } else {
+                        for (let ruleName in ruleMap) {
+                            if (ruleMap.hasOwnProperty(ruleName)) {
+                                let ruleValue = ruleMap[ruleName];
+                                let validateResult = validate(ruleName, ruleValue, `${objPath}.${paramKey}`, paramValue);
+                                if (validateResult) return validateResult;
+                            }
                         }
                     }
                 } else {
                     let objSchema = schema;
-                    let paramValue = obj[paramKey];
                     if (matchType('array', objSchema)) {
                         let index = 0;
                         for (let paramValueEach of paramValue) {
-                            index++;
                             if (objSchema.length !== 1) {
                                 throw new Error(`Array schema of ${objPath}.${paramKey} cannot have one more value`);
                             }
                             let validateResult = validateObj(paramValueEach, objSchema[0], `${objPath}.${paramKey}[${index}]`);
                             if (validateResult) return validateResult;
+                            index++;
                         }
                     } else {
                         // FIXME 只在顶级需要判断，次级不会用这种情况
