@@ -1,43 +1,112 @@
 /**
  * author: wang719695@gmail.com
- * date: 2017.7.14
- * version: 1.0.0
+ * date: 2017.7.17
+ * version: 1.1.0
  * 验证request参数，并对部分参数进行处理
  */
 
+/*
+* 更新：
+* 1. 取消toObj规则，全部采用隐式转换。
+* 2. 取消“.”链式属性，使用对象映射。
+* 3. 支持对array相同格式子元素支持。
+* 4. 所有规则使用$前缀
+* */
+
+// TODO 为内建error增加更多说明信息
+// TODO 解决编辑器警告问题
+// TODO 递归报错时包含链式的信息
+
 /**
- * 参数检查函数
+ * 对一个对象遍历检查
+ * @param obj
+ * @param objSchema
+ * @returns {*}
+ */
+function validateObj (obj, objSchema) {
+    for (let paramKey in obj) {
+        if (objSchema.hasOwnProperty(paramKey)) {
+            let schema =  objSchema[paramKey];
+            if (matchType('object', schema) && !matchType('array', schema)) {
+                let isRuleMap = Object.keys(schema)[0][0] === '$';
+                for (key in schema) {
+                    if ((key[0] === '$') !== isRuleMap) {
+                        throw new Error('mixed use of rule & prop');
+                    }
+                }
+                if (isRuleMap) {
+                    // 是规则映射
+                    let ruleMap = schema;
+                    for (let ruleName in ruleMap) {
+                        let paramValue = obj[paramKey];
+                        let ruleValue = ruleMap[ruleName];
+                        let validateResult = validate(ruleName, ruleValue, paramKey, paramValue);
+                        if (validateResult) {
+                            return validateResult;
+                        }
+                    }
+                } else {
+                    // 是属性schema
+                    let objSchema = schema;
+                    let paramValue = obj[paramKey];
+
+                    // FIXME 只在顶级需要判断，次级不会用这种情况
+                    if (matchType('object', objSchema) && matchType('string', paramValue)) {
+                        try {
+                            obj[paramKey] = JSON.parse(paramValue);
+                        } catch (e) {
+                            return {code: 3, msg: 'parse json to object error', paramKey, paramValue};
+                        }
+                    }
+                    return validateObj(paramValue, objSchema);
+                }
+            } else {
+                // FIXME 这个条件分支包括schema为array的情况
+                throw new Error('schema must be an object');
+            }
+        }
+    }
+}
+
+/**
+ * 参数检查主流程
  * @param schema
  * @param req
  * @returns *
  */
 module.exports = function (req, schema) {
-    for (let objName of ['body','query']) {
-        if (!schema[objName]) continue;
+    for (let resParamType of ['body','query']) {
+        if (req[resParamType]) {
+            let objSchema = schema[resParamType];
+            let obj = req[resParamType];
+            let result = validateObj(obj, objSchema);
+            if (result) return result;
+        }
+    }
+    return {code: 0, msg: 'pass'};
+/*        if (!schema[objName]) continue;
         let obj = req[objName];
-        let objSchemaList = Object.keys(schema[objName]);
-        // 普通参数检查
+        // let objSchemaList = Object.keys(schema[objName]);
         for (let paramKey in obj) {
-            if (objSchemaList.includes(paramKey)) {
+            if (schema[objName].hasOwnProperty(paramKey)) {
                 let ruleMap = schema[objName][paramKey];
                 for (let ruleName in ruleMap) {
                     let paramValue = obj[paramKey];
                     let ruleValue = ruleMap[ruleName];
-                    // json字符串转object
-                    if (ruleName === 'toObj') {
+                    if (matchType('object', ruleValue)) {
+                        // 对象类型规则值
                         try {
                             req[objName][paramKey] = JSON.parse(paramValue);
                         } catch (e) {
                             return {code: 3, msg: 'parse json to object error', paramKey, paramValue};
                         }
-                    // TODO 支持检查array的内部项
-/*                    } else if (ruleName === 'arrayItem') {
-                        if (matchType('array', paramValue)) {
-                            for (let itemValue of paramValue) {
-                                let itemRuleName =
-                            }
-                        }*/
+                        if (matchType('array', ruleValue)) {
+                            // 对每个项检查
+                        }
+                        // 深入遍历对象：
+
                     } else {
+                        // 非对象类型规则值
                         let validateResult = validate(ruleName, ruleValue, paramKey, paramValue);
                         if (validateResult) {
                             return validateResult;
@@ -45,9 +114,9 @@ module.exports = function (req, schema) {
                     }
                 }
             }
-        }
+        }*/
         //链式参数检查
-        for (let ruleKey of objSchemaList) {
+/*        for (let ruleKey of objSchemaList) {
             if (ruleKey.includes('.')){
                 let keylist = ruleKey.split('.');
                 // 尝试隐式转为obj
@@ -84,9 +153,8 @@ module.exports = function (req, schema) {
                 }
 
             }
-        }
-    }
-    return {code: 0, msg: 'pass'};
+        }*/
+
 };
 
 /**
@@ -106,28 +174,28 @@ function validate(ruleName, ruleValue, paramKey, paramValue) {
         }
     }
     switch (ruleName) {
-        case 'equal':
+        case '$equal':
             if (matchEqual(ruleValue, paramValue)) return 0;
             break;
-        case 'type':
+        case '$type':
             if (matchType(ruleValue, paramValue)) return 0;
             break;
-        case 'reg':
+        case '$reg':
             if (matchReg(ruleValue, paramValue)) return 0;
             break;
-        case 'range':
+        case '$range':
             if (matchRange(ruleValue, paramValue)) return 0;
             break;
-        case '_enum':
+        case '$enum':
             if (matchEnum(ruleValue, paramValue)) return 0;
             break;
-        case 'special':
+        case '$special':
             if (matchSpecial(ruleValue, paramValue)) return 0;
             break;
-        case 'length' :
+        case '$length' :
             if (matchLength(ruleValue, paramValue)) return 0;
             break;
-        case 'lengthRange' :
+        case '$lengthRange' :
             if (matchLengthRange(ruleValue, paramValue)) return 0;
             break;
         default:
@@ -285,34 +353,4 @@ function matchLengthRange(ruleValue, paramValue) {
 }
 
 
-// FOR TEST
-if (!module.parent) {
-    schema = {
-        body: {
-            ip : {special: 'ip'},
-            port : {type: "int", range: [0, 65535]},
-            normalState: {_enum: ["on", "off"]},
-            rules: {type: 'object'},
-            rules2: {toObj: true},
-            "rules.times": {range: [0,]},
-            "rules.a.b": {_enum: ["on","off"]}
-        }
-    };
-    let req = {
-        body: {
-            ip : '123.123.0.255',
-            port: 2000,
-            normalState: 'on',
-            rules: {
-                times: 0,
-                a: {
-                    b: "on"
-                }
-            },
-            rules2: JSON.stringify({level:"error"})
-        }
-    };
 
-    result = module.exports(req,schema);
-    console.log(JSON.stringify(result,null,2));
-}
