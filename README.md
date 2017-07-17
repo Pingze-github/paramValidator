@@ -1,7 +1,7 @@
 # paramValidator
 A easy-use node.js tool to validate params transport into your server's API。
 
-#### Intro
+### Intro
 
 **paramValidator** is a easy-use tool to do param validating work in your server.
 
@@ -15,7 +15,7 @@ It has perfect return message and error report, so you can find your mistake eas
 
 It has easy-read source code, so that you can add your rules easily.
 
-#### Usage
+### Usage
 
 ``` javascript
 const paramValidator = require('./paramValidator');
@@ -57,7 +57,7 @@ function update(req, res) {
 
 ```
 
-#### return format
+### return format
 
 ```
 // when pass
@@ -76,12 +76,12 @@ function update(req, res) {
 }
 ```
 
-#### Note
+### Note
 
 All rulenames start with a '$'. don't forget that, and don't make your param starts with '$'
 (The tool may throw an error).
 
-#### Rules
+### Rules
 
 + $equal
 + $type
