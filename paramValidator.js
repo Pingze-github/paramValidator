@@ -13,61 +13,6 @@
 * 4. 所有规则使用$前缀
 * */
 
-// TODO 为内建error增加更多说明信息
-// TODO 解决编辑器警告问题
-// TODO 递归报错时包含链式的信息
-
-/**
- * 对一个对象遍历检查
- * @param obj
- * @param objSchema
- * @returns {*}
- */
-function validateObj (obj, objSchema) {
-    for (let paramKey in obj) {
-        if (objSchema.hasOwnProperty(paramKey)) {
-            let schema =  objSchema[paramKey];
-            if (matchType('object', schema) && !matchType('array', schema)) {
-                let isRuleMap = Object.keys(schema)[0][0] === '$';
-                for (key in schema) {
-                    if ((key[0] === '$') !== isRuleMap) {
-                        throw new Error('mixed use of rule & prop');
-                    }
-                }
-                if (isRuleMap) {
-                    // 是规则映射
-                    let ruleMap = schema;
-                    for (let ruleName in ruleMap) {
-                        let paramValue = obj[paramKey];
-                        let ruleValue = ruleMap[ruleName];
-                        let validateResult = validate(ruleName, ruleValue, paramKey, paramValue);
-                        if (validateResult) {
-                            return validateResult;
-                        }
-                    }
-                } else {
-                    // 是属性schema
-                    let objSchema = schema;
-                    let paramValue = obj[paramKey];
-
-                    // FIXME 只在顶级需要判断，次级不会用这种情况
-                    if (matchType('object', objSchema) && matchType('string', paramValue)) {
-                        try {
-                            obj[paramKey] = JSON.parse(paramValue);
-                        } catch (e) {
-                            return {code: 3, msg: 'parse json to object error', paramKey, paramValue};
-                        }
-                    }
-                    return validateObj(paramValue, objSchema);
-                }
-            } else {
-                // FIXME 这个条件分支包括schema为array的情况
-                throw new Error('schema must be an object');
-            }
-        }
-    }
-}
-
 /**
  * 参数检查主流程
  * @param schema
@@ -79,83 +24,83 @@ module.exports = function (req, schema) {
         if (req[resParamType]) {
             let objSchema = schema[resParamType];
             let obj = req[resParamType];
-            let result = validateObj(obj, objSchema);
+            let result = validateObj(obj, objSchema, `req.${resParamType}`);
             if (result) return result;
         }
     }
     return {code: 0, msg: 'pass'};
-/*        if (!schema[objName]) continue;
-        let obj = req[objName];
-        // let objSchemaList = Object.keys(schema[objName]);
-        for (let paramKey in obj) {
-            if (schema[objName].hasOwnProperty(paramKey)) {
-                let ruleMap = schema[objName][paramKey];
-                for (let ruleName in ruleMap) {
-                    let paramValue = obj[paramKey];
-                    let ruleValue = ruleMap[ruleName];
-                    if (matchType('object', ruleValue)) {
-                        // 对象类型规则值
-                        try {
-                            req[objName][paramKey] = JSON.parse(paramValue);
-                        } catch (e) {
-                            return {code: 3, msg: 'parse json to object error', paramKey, paramValue};
-                        }
-                        if (matchType('array', ruleValue)) {
-                            // 对每个项检查
-                        }
-                        // 深入遍历对象：
+};
 
-                    } else {
-                        // 非对象类型规则值
-                        let validateResult = validate(ruleName, ruleValue, paramKey, paramValue);
-                        if (validateResult) {
-                            return validateResult;
+/**
+ * 对一个对象遍历检查
+ * @param obj
+ * @param objSchema
+ * @param objPath
+ * @returns {*}
+ */
+function validateObj (obj, objSchema, objPath) {
+    if (!matchType('object', objSchema)) {
+        throw TypeError('Schema found not an object');
+    }
+    for (let paramKey in obj) {
+        if (obj.hasOwnProperty(paramKey) && objSchema.hasOwnProperty(paramKey)) {
+            let schema =  objSchema[paramKey];
+            if (matchType('object', schema)) {
+                let isRuleMap;
+                if (matchType('array', schema)) {
+                    isRuleMap = false;
+                } else {
+                    isRuleMap = Object.keys(schema)[0][0] === '$';
+                    for (let key in schema) {
+                        if (schema.hasOwnProperty(key)) {
+                            if ((key[0] === '$') !== isRuleMap) {
+                                throw new Error('mixed use of rule & prop');
+                            }
                         }
                     }
                 }
-            }
-        }*/
-        //链式参数检查
-/*        for (let ruleKey of objSchemaList) {
-            if (ruleKey.includes('.')){
-                let keylist = ruleKey.split('.');
-                // 尝试隐式转为obj
-                let paramKey = keylist[0];
-                if (req[objName][paramKey]) {
-                    let paramValue = req[objName][paramKey];
-                    if (typeof paramValue !== 'object') {
-                        try {
-                            req[objName][paramKey] = JSON.parse(paramValue);
-                        } catch (e) {
-                            return {code: 3, msg:'parse json to object error', paramKey, paramValue};
-                        }
-                    }
-                    // 利用keylist获取paramValue对象中的值
-                    let value = paramValue;
-                    keylist.splice(0,1);
-                    for (key of keylist) {
-                        value = value[key];
-                        if (typeof value === 'undefined') {
-                            return {code: 4, msg: 'not found listkey', ruleKey};
-                        }
-                    }
-                    // 对最终获取的value进行检查
-                    let ruleMap = schema[objName][ruleKey];
+                if (isRuleMap) {
+                    let ruleMap = schema;
                     for (let ruleName in ruleMap) {
-                        let ruleValue = ruleMap[ruleName];
-                        let validateResult = validate(ruleName, ruleValue, ruleKey, value);
-                        if (validateResult) {
-                            return validateResult;
+                        if (ruleMap.hasOwnProperty(ruleName)) {
+                            let paramValue = obj[paramKey];
+                            let ruleValue = ruleMap[ruleName];
+                            let validateResult = validate(ruleName, ruleValue, `${objPath}.${paramKey}`, paramValue);
+                            if (validateResult) return validateResult;
                         }
                     }
                 } else {
-                    return {code: 5, msg: 'not found listkey\'s fisrt key' , ruleKey};
+                    let objSchema = schema;
+                    let paramValue = obj[paramKey];
+                    if (matchType('array', objSchema)) {
+                        let index = 0;
+                        for (let paramValueEach of paramValue) {
+                            index++;
+                            if (objSchema.length !== 1) {
+                                throw new Error(`Array schema of ${objPath}.${paramKey} cannot have one more value`);
+                            }
+                            let validateResult = validateObj(paramValueEach, objSchema[0], `${objPath}.${paramKey}[${index}]`);
+                            if (validateResult) return validateResult;
+                        }
+                    } else {
+                        // FIXME 只在顶级需要判断，次级不会用这种情况
+                        if (matchType('object', objSchema) && matchType('string', paramValue)) {
+                            try {
+                                obj[paramKey] = JSON.parse(paramValue);
+                            } catch (e) {
+                                return {code: 3, msg: 'parse json to object error', paramKey, paramValue};
+                            }
+                        }
+                        let validateResult = validateObj(paramValue, objSchema, `${objPath}.${paramKey}`);
+                        if (validateResult) return validateResult;
+                    }
                 }
-
+            } else {
+                throw TypeError(`Schema of ${objPath}.${paramKey} found not an object`);
             }
-        }*/
-
-};
+        }
+    }
+}
 
 /**
  * 检测规则和值是否匹配
@@ -199,7 +144,7 @@ function validate(ruleName, ruleValue, paramKey, paramValue) {
             if (matchLengthRange(ruleValue, paramValue)) return 0;
             break;
         default:
-            throw new Error(`Meet invalid rule name [${ruleName}] when checking ${paramKey}`);
+            throw SyntaxError(`Meet invalid rule name ${ruleName} when checking ${paramKey}`);
     }
     return {code: 1, msg:'not match validate rules', ruleName, ruleValue, paramKey, paramValue};
 }

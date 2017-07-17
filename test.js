@@ -21,21 +21,18 @@ schema = {
             a: {
                 b: {$enum: ["on","off"]}
             }
-        }
-/*        rules: [
+        },
+        rules: [
             {
-                times: {$range: [0,]},
+                times: {$range: [0,20]},
                 a: {
                     b: {$enum: ["on","off"]}
                 }
             }
-        ]*/
-
-
-/*        "rules.times": {range: [0,]},
-        "rules.a.b": {_enum: ["on","off"]}*/
+        ]
     }
 };
+
 let req = {
     body: {
         ip : '123.123.0.255',
@@ -47,12 +44,12 @@ let req = {
             a: {
                 b: "on"
             }
-        }
-/*        rules: JSON.stringify([
+        },
+        rules: [
             {
-                times: 20,
+                times: 30,
                 a: {
-                    b: "on"
+                    b: "ons"
                 }
             },
             {
@@ -61,7 +58,7 @@ let req = {
                     b: "off"
                 }
             }
-        ])*/
+        ]
     }
 };
 
