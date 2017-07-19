@@ -25,10 +25,10 @@ module.exports = function (req, schema) {
         if (schema[resParamType]) {
             let objSchema = schema[resParamType];
             let obj = req[resParamType];
-            let resultNullCheck = validateNull(obj, objSchema , `req.${resParamType}`, req);
-            if (resultNullCheck) return resultNullCheck;
             let result = validateObj(obj, objSchema, `req.${resParamType}`, req);
             if (result) return result;
+            let resultNullCheck = validateNull(obj, objSchema , `req.${resParamType}`, req);
+            if (resultNullCheck) return resultNullCheck;
         }
     }
     return {code: 0, msg: 'pass'};
