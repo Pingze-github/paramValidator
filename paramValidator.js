@@ -24,7 +24,7 @@ module.exports = function (req, schema) {
         if (schema[resParamType]) {
             let objSchema = schema[resParamType];
             let obj = req[resParamType];
-            let result = validateObj(obj, objSchema, `req.${resParamType}`);
+            let result = validateObj(obj, objSchema, `req.${resParamType}`, req);
             if (result) return result;
         }
     }
@@ -38,7 +38,7 @@ module.exports = function (req, schema) {
  * @param objPath
  * @returns {*}
  */
-function validateObj (obj, objSchema, objPath) {
+function validateObj (obj, objSchema, objPath, req) {
     if (!matchType('object', objSchema)) {
         throw TypeError('Schema found not an object');
     }
@@ -64,13 +64,15 @@ function validateObj (obj, objSchema, objPath) {
                         }
                     }
                 }
-                // FIXME 只在顶级需要判断，次级不会用这种情况
-                if (matchType('string', paramValue)) {
-                    if ((!isRuleMap && matchType('object', schema)) || (isRuleMap && matchType('array', schema))) {
-                        try {
-                            paramValue = JSON.parse(paramValue);
-                        } catch (e) {
-                            return {code: 3, msg: 'parse json to object error', paramKey, paramValue};
+                if (req) {
+                    if (matchType('string', paramValue)) {
+                        if ((!isRuleMap && matchType('object', schema)) || (isRuleMap && matchType('array', schema))) {
+                            try {
+                                paramValue = JSON.parse(paramValue);
+                                eval(`${objPath}.${paramKey}=paramValue`);
+                            } catch (e) {
+                                return {code: 3, msg: 'parse json to object error', paramKey, paramValue};
+                            }
                         }
                     }
                 }
