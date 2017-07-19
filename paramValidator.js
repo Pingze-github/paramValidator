@@ -19,6 +19,7 @@
  * @param req
  * @returns *
  */
+
 module.exports = function (req, schema) {
     for (let resParamType of ['body','query']) {
         if (schema[resParamType]) {
@@ -64,15 +65,13 @@ function validateObj (obj, objSchema, objPath, req) {
                         }
                     }
                 }
-                if (req) {
-                    if (matchType('string', paramValue)) {
-                        if ((!isRuleMap && matchType('object', schema)) || (isRuleMap && matchType('array', schema))) {
-                            try {
-                                paramValue = JSON.parse(paramValue);
-                                eval(`${objPath}.${paramKey}=paramValue`);
-                            } catch (e) {
-                                return {code: 3, msg: 'parse json to object error', paramKey, paramValue};
-                            }
+                if (matchType('string', paramValue)) {
+                    if ((!isRuleMap && matchType('object', schema)) || (isRuleMap && matchType('array', schema))) {
+                        try {
+                            paramValue = JSON.parse(paramValue);
+                            eval(`${objPath}.${paramKey}=paramValue`);
+                        } catch (e) {
+                            return {code: 3, msg: 'parse json to object error', paramKey, paramValue};
                         }
                     }
                 }
@@ -98,7 +97,7 @@ function validateObj (obj, objSchema, objPath, req) {
                             for (let ruleName in ruleMap) {
                                 if (ruleMap.hasOwnProperty(ruleName)) {
                                     let ruleValue = ruleMap[ruleName];
-                                    let validateResult = validate(ruleName, ruleValue, `${objPath}.${paramKey}[${index}]`, paramValueEach);
+                                    let validateResult = validate(ruleName, ruleValue, `${objPath}.${paramKey}[${index}]`, paramValueEach, req);
                                     if (validateResult) return validateResult;
                                 }
                             }
@@ -108,7 +107,10 @@ function validateObj (obj, objSchema, objPath, req) {
                         for (let ruleName in ruleMap) {
                             if (ruleMap.hasOwnProperty(ruleName)) {
                                 let ruleValue = ruleMap[ruleName];
-                                let validateResult = validate(ruleName, ruleValue, `${objPath}.${paramKey}`, paramValue);
+/*                                if (ruleName === '$to') {
+                                    let transResult = transTo(ruleValue, , objPath)
+                                }*/
+                                let validateResult = validate(ruleName, ruleValue, `${objPath}.${paramKey}`, paramValue, req);
                                 if (validateResult) return validateResult;
                             }
                         }
@@ -121,12 +123,12 @@ function validateObj (obj, objSchema, objPath, req) {
                             if (objSchema.length !== 1) {
                                 throw new Error(`Array schema of ${objPath}.${paramKey} cannot have one more value`);
                             }
-                            let validateResult = validateObj(paramValueEach, objSchema[0], `${objPath}.${paramKey}[${index}]`);
+                            let validateResult = validateObj(paramValueEach, objSchema[0], `${objPath}.${paramKey}[${index}]`, req);
                             if (validateResult) return validateResult;
                             index++;
                         }
                     } else {
-                        let validateResult = validateObj(paramValue, objSchema, `${objPath}.${paramKey}`);
+                        let validateResult = validateObj(paramValue, objSchema, `${objPath}.${paramKey}`, req);
                         if (validateResult) return validateResult;
                     }
                 }
@@ -145,7 +147,7 @@ function validateObj (obj, objSchema, objPath, req) {
  * @param paramKey
  * @returns {*}
  */
-function validate(ruleName, ruleValue, paramKey, paramValue) {
+function validate(ruleName, ruleValue, paramKey, paramValue, req) {
     if (matchType('undefined', paramValue)){
         if (ruleName === 'type' && ruleValue === 'undefined') {
             return 0;
@@ -177,6 +179,9 @@ function validate(ruleName, ruleValue, paramKey, paramValue) {
             break;
         case '$lengthRange' :
             if (matchLengthRange(ruleValue, paramValue)) return 0;
+            break;
+        case '$to' :
+            if (matchTo(ruleValue, paramValue, paramKey, req)) return 0;
             break;
         default:
             throw SyntaxError(`Meet invalid rule name ${ruleName} when checking ${paramKey}`);
@@ -332,5 +337,37 @@ function matchLengthRange(ruleValue, paramValue) {
     return false;
 }
 
-
+/**
+ * 类型转换，并判断是否能成功
+ * @param ruleValue
+ * @param paramValue
+ * @param paramKey
+ * @param req
+ * @returns boolean
+ */
+function matchTo(ruleValue, paramValue, paramKey, req) {
+    try {
+        let transValue;
+        switch (ruleValue) {
+            case 'number':
+                transValue = Number(paramValue);
+                break;
+            case 'int':
+                transValue = parseInt(paramValue);
+                break;
+            case 'float':
+                transValue = parseFloat(paramValue);
+                break;
+            case 'string':
+                transValue = String(paramValue);
+                break;
+            default:;
+        }
+        eval(`${paramKey}=${transValue}`);
+        return true;
+    } catch(err) {
+        console.log(err);
+        return false;
+    }
+}
 
