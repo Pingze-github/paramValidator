@@ -11,9 +11,14 @@ It supports to transform some params that are transfered into JSON string before
 
 It supports to check into the object type param (within array).
 
+It checks every top-level params to see if then has value as default(use ```$default:xxx``` to close).
+
+It can transfer string type params to needed type using ```$to```.
+
 It has perfect return message and error report, so you can find your mistake easily.
 
 It has easy-read source code, so that you can add your rules easily.
+
 
 ### Usage
 
@@ -31,14 +36,14 @@ function update(req, res) {
     },
     body: {
         ip : {$special: 'ip'},
-        port : {$type: "int", $range: [0, 65535]},
+        port : {$to: "int", $range: [0, 65535], $default: '80'},
         normalState: {$enum: ["on", "off"]},
         ext: {
-            interval2: {$range: [0,20]}
+            interval2: {$range: [0,20], $to: 'int'}
         },
         rules: [
             {
-                times: {$range: [0,20]},
+                times: {$range: [0,20], $to: 'int'},
                 a: {
                     b: {$enum: ["on","off"]}
                     c: [{$range: [1,3]}]
@@ -91,3 +96,5 @@ All rulenames start with a '$'. don't forget that, and don't make your param sta
 + $length
 + $lengthRange
 + $special
++ $to
++ $default

@@ -25,6 +25,8 @@ module.exports = function (req, schema) {
         if (schema[resParamType]) {
             let objSchema = schema[resParamType];
             let obj = req[resParamType];
+            let resultNullCheck = validateNull(obj, objSchema , `req.${resParamType}`, req);
+            if (resultNullCheck) return resultNullCheck;
             let result = validateObj(obj, objSchema, `req.${resParamType}`, req);
             if (result) return result;
         }
@@ -32,11 +34,28 @@ module.exports = function (req, schema) {
     return {code: 0, msg: 'pass'};
 };
 
+function validateNull(obj, objSchema, objPath, req) {
+    for (let paramKey in objSchema) {
+        if (!('$default' in objSchema[paramKey])){
+            if (!(paramKey in obj)) {
+                return {code: 5, msg: 'Missed param key expected in params', paramKey: `${objPath}.${paramKey}`};
+            }
+        } else {
+            if (!(paramKey in obj)) {
+                eval(`${objPath}.${paramKey}='${objSchema[paramKey]['$default']}'`);
+            }
+            delete objSchema[paramKey]['$default'];
+        }
+    }
+    return 0;
+}
+
 /**
  * 对一个对象遍历检查
  * @param obj
  * @param objSchema
  * @param objPath
+ * @param req
  * @returns {*}
  */
 function validateObj (obj, objSchema, objPath, req) {
@@ -145,16 +164,10 @@ function validateObj (obj, objSchema, objPath, req) {
  * @param ruleValue
  * @param paramValue
  * @param paramKey
+ * @param req
  * @returns {*}
  */
 function validate(ruleName, ruleValue, paramKey, paramValue, req) {
-    if (matchType('undefined', paramValue)){
-        if (ruleName === 'type' && ruleValue === 'undefined') {
-            return 0;
-        } else {
-            return {code: 2, result:'undefined', ruleName, ruleValue, paramKey, paramValue};
-        }
-    }
     switch (ruleName) {
         case '$equal':
             if (matchEqual(ruleValue, paramValue)) return 0;
