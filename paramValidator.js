@@ -387,15 +387,15 @@ function matchLength(ruleValue, paramValue) {
 function matchLengthRange(ruleValue, paramValue) {
     if (matchType('string', paramValue) || matchType('array', paramValue)) {
         if (typeof ruleValue[0] === 'undefined' && typeof ruleValue[1] !== 'undefined') {
-            if (ruleValue[1] >= paramValue) {
+            if (ruleValue[1] >= paramValue.length) {
                 return true;
             }
         } else if (typeof ruleValue[1] === 'undefined' && typeof ruleValue[0] !== 'undefined') {
-            if (ruleValue[0] <= paramValue) {
+            if (ruleValue[0] <= paramValue.length) {
                 return true;
             }
         } else {
-            if (ruleValue[0] <= paramValue && ruleValue[1] >= paramValue) {
+            if (ruleValue[0] <= paramValue.length && ruleValue[1] >= paramValue.length) {
                 return true;
             }
         }
@@ -407,7 +407,7 @@ function matchLengthRange(ruleValue, paramValue) {
  * 类型转换，并判断是否能成功
  * @param ruleValue
  * @param paramValue
- * @param paramKey
+ * @param paramPath
  * @param req
  * @returns boolean
  */
@@ -426,6 +426,16 @@ function matchTo(ruleValue, paramValue, paramPath, req) {
                 break;
             case 'string':
                 transValue = String(paramValue);
+                break;
+            case 'boolean':
+                transValue = (function (v) {
+                    if (v === 'true' || v === 'TRUE') {
+                        return true;
+                    }
+                    if (v === 'false' || v === 'FALSE') {
+                        return false;
+                    }
+                })(paramValue);
                 break;
             default:;
         }
