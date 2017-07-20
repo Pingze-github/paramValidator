@@ -19,7 +19,6 @@ It has perfect return message and error report, so you can find your mistake eas
 
 It has easy-read source code, so that you can add your rules easily.
 
-
 ### Usage
 
 ``` javascript
@@ -37,9 +36,10 @@ function update(req, res) {
     body: {
         ip : {$special: 'ip'},
         port : {$to: "int", $range: [0, 65535], $default: '80'},
-        normalState: {$enum: ["on", "off"]},
+        normalState: {$enum: ["on", "off"], $default: 'on'},
         ext: {
-            interval2: {$range: [0,20], $to: 'int'}
+            interval2: {$range: [0,20], $to: 'int'},
+            $default: null
         },
         rules: [
             {
@@ -50,7 +50,7 @@ function update(req, res) {
                 }
             }
         ],
-        users: [{reg: /^\d{6,9}$/}]
+        users: [{reg: /^\d{6,9}$/, $default: []}]
     }
   });
   if (result.code) {

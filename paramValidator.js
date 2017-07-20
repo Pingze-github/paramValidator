@@ -34,17 +34,67 @@ module.exports = function (req, schema) {
     return {code: 0, msg: 'pass'};
 };
 
+/**
+ * 按照属性链路径赋值，在一定级数内代替eval
+ * @param path
+ * @param value
+ * @param req
+ */
+function assign(path, value, req) {
+    let patterns = path.split('.');
+    let nodes = [];
+    for (let pattern of patterns) {
+        if (pattern.includes('[')) {
+            let first = s.match(/^(.+?)\[/)[1];
+            let others = s.match(/[(\d+)]/g);
+            nodes.push(fisrt);
+            nodes.concat(others);
+        } else {
+            nodes.push(pattern);
+        }
+    }
+    switch (nodes.length) {
+        case 2:
+            req[nodes[1]] = value;
+            break;
+        case 3:
+            req[nodes[1]][nodes[2]] = value;
+            break;
+        case 4:
+            req[nodes[1]][nodes[2]][nodes[3]] = value;
+            break;
+        case 5:
+            req[nodes[1]][nodes[2]][nodes[3]][nodes[4]] = value;
+            break;
+        default:
+            eval(`${path}=value`);
+    }
+}
+
+/**
+ * 参数空检查和默认值赋予
+ * @param obj
+ * @param objSchema
+ * @param objPath
+ * @param req
+ * @returns {*}
+ */
 function validateNull(obj, objSchema, objPath, req) {
     for (let paramKey in objSchema) {
-        if (!('$default' in objSchema[paramKey])){
+        if (!('$default' in objSchema[paramKey] || (objSchema[paramKey][0] && '$default' in objSchema[paramKey][0]))){
             if (!(paramKey in obj)) {
                 return {code: 5, msg: 'Missed param key expected in params', paramKey: `${objPath}.${paramKey}`};
             }
         } else {
             if (!(paramKey in obj)) {
-                eval(`${objPath}.${paramKey}='${objSchema[paramKey]['$default']}'`);
+                let defaultValue;
+                if (matchType('array', objSchema[paramKey])) {
+                    defaultValue = objSchema[paramKey][0]['$default'];
+                } else {
+                    defaultValue = objSchema[paramKey]['$default'];
+                }
+                assign(`${objPath}.${paramKey}`, defaultValue , req);
             }
-            delete objSchema[paramKey]['$default'];
         }
     }
     return 0;
@@ -88,7 +138,7 @@ function validateObj (obj, objSchema, objPath, req) {
                     if ((!isRuleMap && matchType('object', schema)) || (isRuleMap && matchType('array', schema))) {
                         try {
                             paramValue = JSON.parse(paramValue);
-                            eval(`${objPath}.${paramKey}=paramValue`);
+                            assign(`${objPath}.${paramKey}`, paramValue, req);
                         } catch (e) {
                             return {code: 3, msg: 'parse json to object error', paramKey, paramValue};
                         }
@@ -195,6 +245,9 @@ function validate(ruleName, ruleValue, paramKey, paramValue, req) {
             break;
         case '$to' :
             if (matchTo(ruleValue, paramValue, paramKey, req)) return 0;
+            break;
+        case '$default' :
+            return 0;
             break;
         default:
             throw SyntaxError(`Meet invalid rule name ${ruleName} when checking ${paramKey}`);
@@ -358,7 +411,7 @@ function matchLengthRange(ruleValue, paramValue) {
  * @param req
  * @returns boolean
  */
-function matchTo(ruleValue, paramValue, paramKey, req) {
+function matchTo(ruleValue, paramValue, paramPath, req) {
     try {
         let transValue;
         switch (ruleValue) {
@@ -376,7 +429,7 @@ function matchTo(ruleValue, paramValue, paramKey, req) {
                 break;
             default:;
         }
-        eval(`${paramKey}=${transValue}`);
+        assign(`${paramPath}`, transValue, req);
         return true;
     } catch(err) {
         console.log(err);
