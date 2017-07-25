@@ -5,14 +5,6 @@
  * 验证request参数，并对部分参数进行处理
  */
 
-/*
- * 更新：
- * 1. 取消toObj规则，全部采用隐式转换。
- * 2. 取消“.”链式属性，使用对象映射。
- * 3. 支持对array相同格式子元素支持。
- * 4. 所有规则使用$前缀
- * */
-
 /**
  * 参数检查主流程
  * @param schema
@@ -45,10 +37,10 @@ function assign(path, value, req) {
     let nodes = [];
     for (let pattern of patterns) {
         if (pattern.includes('[')) {
-            let first = s.match(/^(.+?)\[/)[1];
-            let others = s.match(/[(\d+)]/g);
-            nodes.push(fisrt);
-            nodes.concat(others);
+            let first = pattern.match(/^(.+?)\[/)[1];
+            let others = pattern.match(/[(\d+)]/g);
+            nodes.push(first);
+            nodes = nodes.concat(others);
         } else {
             nodes.push(pattern);
         }
@@ -243,8 +235,17 @@ function validate(ruleName, ruleValue, paramKey, paramValue, req) {
         case '$lengthRange' :
             if (matchLengthRange(ruleValue, paramValue)) return 0;
             break;
+        case '$filter' :
+            if (matchFilter(ruleValue, paramValue)) return 0;
+            break;
         case '$to' :
             if (matchTo(ruleValue, paramValue, paramKey, req)) return 0;
+            break;
+        case '$set' :
+            set(ruleValue, paramKey, req);
+            return 0;
+        case '$computer' :
+            if (matchComputer(ruleValue, paramValue, paramKey, req)) return 0;
             break;
         case '$default' :
             return 0;
@@ -404,6 +405,25 @@ function matchLengthRange(ruleValue, paramValue) {
 }
 
 /**
+ * 匹配过滤器
+ * @param ruleValue
+ * @param paramValue
+ * @returns boolean
+ */
+function matchFilter(ruleValue, paramValue) {
+    try {
+        if (matchType('function', ruleValue)) {
+            if (true === ruleValue(paramValue)) {
+                return true;
+            }
+        }
+    } catch (err) {
+        console.log(err);
+    }
+    return false;
+}
+
+/**
  * 类型转换，并判断是否能成功
  * @param ruleValue
  * @param paramValue
@@ -447,3 +467,36 @@ function matchTo(ruleValue, paramValue, paramPath, req) {
     }
 }
 
+/**
+ * 直接赋值
+ * @param ruleValue
+ * @param paramValue
+ * @param paramPath
+ * @param req
+ * @returns boolean
+ */
+function set(ruleValue, paramPath, req) {
+    assign(`${paramPath}`, ruleValue, req);
+    return true;
+}
+
+/**
+ * 匹配计算器，赋计算结果
+ * @param ruleValue
+ * @param paramValue
+ * @param paramPath
+ * @param req
+ * @returns boolean
+ */
+function matchComputer(ruleValue, paramValue, paramPath, req) {
+    try {
+        if (matchType('function', ruleValue)) {
+            let transValue = ruleValue(paramValue);
+            assign(`${paramPath}`, transValue, req);
+            return true;
+        }
+    } catch (err) {
+        console.log(err);
+    }
+    return false;
+}

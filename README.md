@@ -98,3 +98,6 @@ All rulenames start with a '$'. don't forget that, and don't make your param sta
 + $special
 + $to
 + $default
++ $set
++ $filter
++ $computer
