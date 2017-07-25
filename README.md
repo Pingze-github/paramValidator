@@ -35,10 +35,15 @@ function update(req, res) {
     },
     body: {
         ip : {$special: 'ip'},
-        port : {$to: "int", $range: [0, 65535], $default: '80'},
+        port : {$to: "int", $range: [1, 65535], $default: '80'},
+        port2 : {$computer: v => {
+            if (typeof v === 'undefined') return 80;
+            let v = parseInt(v);
+            if (v && v>=1 && v<=65535) return v;
+        }},
         normalState: {$enum: ["on", "off"], $default: 'on'},
         ext: {
-            interval2: {$range: [0,20], $to: 'int'},
+            interval: {$range: [0,20], $to: 'int'},
             $default: null
         },
         rules: [
@@ -50,7 +55,12 @@ function update(req, res) {
                 }
             }
         ],
-        users: [{reg: /^\d{6,9}$/, $default: []}]
+        users: [{reg: /^\d{6,9}$/}],
+        users2: {$filter: v => {
+            for (let item of v)
+                if (!v.match(/^\d{6,9}$/)) return false;
+            return true;
+        }}
     }
   });
   if (result.code) {
