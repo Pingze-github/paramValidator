@@ -115,7 +115,9 @@ function validateObj (obj, objSchema, objPath, req) {
                 // 判断参数对象类型
                 let isRuleMap;
                 if (matchType('array', schema)) {
-                    isRuleMap = (schema.length === 1 && Object.keys(schema[0])[0][0] === '$');
+                    if (!JSON.stringify(schema) === '[{}]') {
+                        isRuleMap = (schema.length === 1 && Object.keys(schema[0])[0][0] === '$');
+                    }
                 } else {
                     isRuleMap = Object.keys(schema)[0][0] === '$';
                     for (let key in schema) {
